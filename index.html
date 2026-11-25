@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>RN — Цветочная студия в Москве</title>
+    <meta name="description" content="Авторские букеты и цветочные композиции RN. Доставка по Москве. Заказ по телефону 8 977 893-36-40.">
+    
+    <!-- Шрифты -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --ink: #2c251e; 
+            --muted: #7a6e5e; 
+            --paper: #faf7f2; 
+            --white: #ffffff;
+            --line: rgba(195, 164, 124, 0.3); 
+            --gold: #c3a47c; 
+            --gold-dark: #a58258; 
+            --gold-light: #f5efe6; 
+            --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+            --sans: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        
+        body { 
+            margin: 0; 
+            background: var(--paper);
+            color: var(--ink); 
+            font: 16px/1.6 var(--sans); 
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        
+        a { color: inherit; text-decoration: none; }
+        a:focus-visible, button:focus-visible { outline: 2px solid var(--gold-dark); outline-offset: 4px; }
+        button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+        
+        /* --- Canvas для падающих лепестков --- */
+        #petals-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 0;
+        }
+
+        /* --- Анимации при скролле --- */
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 1s cubic-bezier(0.2, 0.8, 0.2, 1); }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+
+        /* --- ШАПКА (Прозрачная, появляется при скролле) --- */
+        header { 
+            position: fixed; top: 0; left: 0; width: 100%; z-index: 100;
+            background: transparent; 
+            border-bottom: 1px solid transparent;
+            transition: all 0.4s ease;
+        }
+        header.scrolled {
+            background: rgba(250, 247, 242, 0.95); 
+            backdrop-filter: blur(15px); 
+            border-bottom: 1px solid var(--line);
+        }
+        
+        .bar { display: flex; justify-content: space-between; align-items: center; min-height: 90px; }
+        
+        .brand { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; line-height: 1;}
+        .brand-title { font-family: var(--serif); font-size: 38px; font-weight: 600; color: var(--ink); letter-spacing: -1px; margin-bottom: 5px; }
+        .brand-sub { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold-dark); font-weight: 600; }
+        
+        nav { display: none; gap: 45px; }
+        nav a { 
+            font-size: 12px; font-weight: 500; text-transform: uppercase; 
+            letter-spacing: 0.15em; color: var(--ink); position: relative; 
+            padding-bottom: 5px; transition: color 0.3s;
+        }
+        nav a::after { 
+            content: ''; position: absolute; bottom: 0; left: 0; width: 0; height: 1px; 
+            background: var(--gold); transition: width 0.3s ease; 
+        }
+        nav a:hover { color: var(--gold-dark); }
+        nav a:hover::after { width: 100%; }
+        
+        .header-actions { display: flex; align-items: center; gap: 30px; }
+        .phone-link { display: none; font-weight: 500; font-size: 15px; color: var(--ink); }
+        
+        .btn { 
+            background: var(--ink); color: var(--white); 
+            padding: 15px 32px; font-size: 12px; font-weight: 500; font-family: var(--sans);
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: all 0.4s; text-transform: uppercase; letter-spacing: 0.1em;
+            position: relative; overflow: hidden; border: 1px solid var(--ink);
+        }
+        .btn::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: var(--gold); transition: left 0.4s ease; z-index: -1;
+        }
+        .btn:hover { border-color: var(--gold); color: var(--white); }
+        .btn:hover::before { left: 0; }
+
+        /* --- НОВЫЙ ГЛАВНЫЙ ЭКРАН (Журнальный стиль) --- */
+        .hero { 
+            display: flex; 
+            min-height: 100vh; 
+            position: relative;
+            background: var(--paper);
+            overflow: hidden;
+        }
+
+        /* Левая часть с текстом */
+        .hero-content {
+            width: 55%;
+            padding: 150px 5% 100px 10%; /* Отступы */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .kicker { 
+            display: flex; align-items: center; gap: 15px; font: 11px var(--sans); 
+            letter-spacing: .25em; text-transform: uppercase; color: var(--gold-dark); font-weight: 600; margin-bottom: 30px;
+        }
+        .kicker:before { content: ''; width: 50px; height: 1px; background: var(--gold); }
+
+        h1, h2, h3 { font-family: var(--serif); font-weight: 400; margin: 0; }
+        h1 { 
+            font-size: clamp(44px, 5vw, 85px); line-height: 1.1; 
+            letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; 
+        }
+        h1 em { font-weight: 400; color: var(--gold-dark); font-style: italic; }
+        
+        .intro { max-width: 480px; color: var(--muted); font-size: 16px; line-height: 1.9; margin-top: 30px; }
+        
+        .actions { gap: 35px; margin-top: 45px; display: flex; align-items: center; }
+        .textlink { 
+            font-size: 12px; color: var(--ink); font-weight: 500; text-transform: uppercase; 
+            letter-spacing: 0.1em; position: relative; padding-bottom: 5px; transition: color 0.3s;
+        }
+        .textlink::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 1px; background: var(--ink); transition: background 0.3s; }
+        .textlink:hover { color: var(--gold-dark); }
+        .textlink:hover::after { background: var(--gold-dark); }
+
+        /* Правая часть с фото */
+        .hero-image-wrapper {
+            position: absolute;
+            top: 0; right: 0;
+            width: 50%;
+            height: 100vh;
+            z-index: 1;
+        }
+        /* Красивое затухание фото влево */
+        .hero-image-wrapper::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 30%; height: 100%;
+            background: linear-gradient(to right, var(--paper) 0%, transparent 100%);
+            z-index: 2;
+        }
+        .hero-image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        /* --- Общие секции --- */
+        section:not(.hero) { padding-block: clamp(80px, 10vw, 140px); position: relative; z-index: 2; background: var(--paper); }
+        .wrap { width: min(90%, 1300px); margin: auto; }
+        
+        h2 { font-size: clamp(34px, 4vw, 58px); letter-spacing: -0.02em; margin-bottom: 40px; color: var(--ink); text-align: center;}
+        h3 { font-size: 22px; letter-spacing: -0.01em; margin-bottom: 12px; color: var(--ink); }
+        
+        /* --- О студии --- */
+        .about { display: grid; gap: 50px; align-items: center; }
+        .about p { margin: 0 0 1.5em; color: var(--muted); font-size: 16px; line-height: 2; }
+        .about p:last-child { margin: 0; }
+        .about h2 { text-align: left; }
+        
+        /* --- Преимущества --- */
+        .benefit-bg { background: var(--white); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+        .benefits { display: grid; gap: 40px; margin-top: 40px; }
+        .benefits h3 { font-size: 14px; font-family: var(--sans); font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin: 0 0 12px; color: var(--ink); text-align: center; }
+        .benefits p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.8; text-align: center;}
+        
+        /* --- Каталог --- */
+        .filters { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 30px 0 60px; }
+        .filters button { 
+            padding: 12px 24px; border: 1px solid var(--line); background: transparent; 
+            font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--muted); transition: all 0.3s; font-weight: 600;
+        }
+        .filters button:hover { border-color: var(--gold); color: var(--gold-dark); }
+        .filters button[aria-pressed=true] { background: var(--gold); border-color: var(--gold); color: var(--white); }
+        
+        .grid { display: grid; gap: 50px 30px; }
+        .grid article { 
+            display: flex; flex-direction: column; background: transparent;
+            transition: all 0.4s ease; cursor: pointer;
+        }
+        
+        .grid article:hover .product-photo { box-shadow: 0 25px 50px rgba(165, 130, 88, 0.2); }
+        .grid article:hover img { transform: scale(1.05); }
+        
+        [hidden] { display: none !important; }
+        
+        .product-photo { 
+            aspect-ratio: 4/5; position: relative; background: var(--gold-light); 
+            overflow: hidden; transition: box-shadow 0.5s ease;
+        }
+        .product-photo span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font: italic 60px var(--serif); letter-spacing: -3px; color: var(--gold-dark); opacity: 0.15; z-index: 0; }
+        .product-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 1s cubic-bezier(0.2, 0.8, 0.2, 1); z-index: 1; }
+        
+        .product-info { padding: 25px 0 0; display: flex; flex-direction: column; flex-grow: 1; }
+        .grid .label { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold-dark); margin-bottom: 12px; font-weight: 600; text-align: center; }
+        .grid h3 { font-size: 24px; margin-bottom: 12px; transition: color 0.3s; text-align: center; }
+        .grid article:hover h3 { color: var(--gold-dark); }
+        .grid p { color: var(--muted); font-size: 14px; line-height: 1.7; margin-bottom: 25px; flex-grow: 1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-align: center; }
+        
+        .order { margin-top: auto; border-top: 1px solid var(--line); padding-top: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .price { font-family: var(--serif); font-size: 24px; color: var(--ink); font-weight: 600; }
+        .order-btn { 
+            background: transparent; color: var(--ink); padding: 10px 0; border-bottom: 1px solid var(--ink);
+            font-size: 12px; font-weight: 600; font-family: var(--sans); text-transform: uppercase; letter-spacing: 0.1em;
+            transition: all 0.3s;
+        }
+        .order-btn:hover { color: var(--gold-dark); border-color: var(--gold-dark); }
+        
+        /* --- Контакты --- */
+        .contact-bg { background: var(--white); border-top: 1px solid var(--line); }
+        .contacts { display: grid; gap: 60px; }
+        .contacts address { font-style: normal; font-size: 16px; line-height: 2.2; color: var(--ink); }
+        .contacts address a:first-child { font: 44px var(--serif); color: var(--gold-dark); display: block; margin-bottom: 30px; transition: color 0.3s; font-weight: 400; }
+        .contacts address a:first-child:hover { color: var(--ink); }
+        .social-link { display: inline-flex; align-items: center; gap: 8px; margin-top: 15px; color: var(--ink); border-bottom: 1px solid var(--ink); padding-bottom: 2px; font-weight: 600; transition: color 0.3s; text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px; }
+        .social-link:hover { color: var(--gold-dark); border-color: var(--gold-dark); }
+        .contacts h2 { text-align: left; }
+        
+        iframe { border: 0; width: 100%; height: 350px; box-shadow: 0 15px 40px rgba(0,0,0,0.05); filter: grayscale(100%) opacity(0.8); transition: filter 0.5s; }
+        iframe:hover { filter: grayscale(0%) opacity(1); }
+        
+        .foot { display: flex; justify-content: space-between; padding-block: 40px; font-size: 13px; gap: 16px; flex-wrap: wrap; border-top: 1px solid var(--line); color: var(--muted); }
+        .foot b { font: 24px var(--serif); margin-right: 10px; color: var(--gold-dark); }
+        
+        /* --- Модальное окно --- */
+        dialog { 
+            border: none; padding: 0; background: var(--paper); 
+            box-shadow: 0 30px 80px rgba(0,0,0,0.3); max-width: 650px; width: 90%; margin: auto; 
+            opacity: 0; transform: scale(0.95) translateY(20px); transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        dialog[open] { opacity: 1; transform: scale(1) translateY(0); }
+        dialog::backdrop { background: rgba(44, 37, 30, 0.85); backdrop-filter: blur(8px); }
+        .modal-content { padding: 60px; position: relative; }
+        .close-btn { position: absolute; top: 25px; right: 25px; font-size: 32px; line-height: 1; color: var(--muted); transition: color 0.3s; }
+        .close-btn:hover { color: var(--ink); }
+        .modal-content h3 { font-size: 38px; margin-bottom: 10px; color: var(--ink); text-align: left; }
+        .modal-price { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--gold-dark); margin-bottom: 30px; border-bottom: 1px solid var(--line); padding-bottom: 20px; }
+        
+        .modal-desc { 
+            text-align: left; font-size: 15px; color: var(--muted); 
+            line-height: 1.9; margin-bottom: 35px; 
+            max-height: 45vh; overflow-y: auto; padding-right: 20px;
+        }
+        .modal-desc b { color: var(--ink); font-weight: 600; }
+        .modal-desc::-webkit-scrollbar { width: 3px; }
+        .modal-desc::-webkit-scrollbar-track { background: var(--gold-light); }
+        .modal-desc::-webkit-scrollbar-thumb { background: var(--gold); }
+        
+        .modal-contact { display: flex; flex-direction: column; gap: 15px; }
+        .modal-contact a { 
+            display: flex; justify-content: center; align-items: center;
+            background: var(--white); border: 1px solid var(--line); padding: 18px; 
+            font-weight: 600; color: var(--ink); transition: all 0.3s; font-family: var(--sans);
+            text-transform: uppercase; letter-spacing: 0.05em; font-size: 13px;
+        }
+        .modal-contact a:hover { background: var(--ink); color: var(--white); border-color: var(--ink); }
+        .modal-contact .phone { font-size: 24px; font-family: var(--serif); text-transform: none; letter-spacing: 0; }
+        
+        /* --- Адаптивность --- */
+        @media(max-width: 960px) {
+            .hero { flex-direction: column; min-height: auto; }
+            .hero-content { width: 100%; padding: 150px 5% 60px; text-align: center; align-items: center; }
+            .hero-image-wrapper { position: relative; width: 100%; height: 60vh; }
+            .hero-image-wrapper::after { display: none; } /* Убираем градиент на мобильных */
+            .kicker { justify-content: center; }
+            .kicker:before { display: none; }
+            .actions { justify-content: center; }
+            .about, .contacts { grid-template-columns: 1fr; }
+            .about h2, .contacts h2 { text-align: center; }
+        }
+
+        @media(min-width: 620px) {
+            .grid, .benefits { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .about, .contacts { grid-template-columns: 1fr 1.2fr; gap: 15%; }
+            .modal-content { padding: 60px 80px; }
+        }
+        @media(min-width: 960px) {
+            nav { display: flex; }
+            .phone-link { display: block; }
+            .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 60px 40px; }
+            .benefits { grid-template-columns: repeat(5, 1fr); gap: 20px; }
+            .benefits > div { padding: 0 20px; }
+            .benefits > div + div { border-left: 1px solid var(--line); }
+        }
+    </style>
+</head>
+<body id="top">
+
+<!-- Canvas для падающих лепестков -->
+<canvas id="petals-canvas"></canvas>
+
+<header id="main-header">
+    <div class="wrap bar">
+        <a class="brand" href="#top">
+            <span class="brand-title">RN</span>
+            <span class="brand-sub">Цветочная студия</span>
+        </a>
+        
+        <nav>
+            <a href="#catalog">Каталог</a>
+            <a href="#studio">О студии</a>
+            <a href="#contacts">Контакты</a>
+        </nav>
+        
+        <div class="header-actions">
+            <a class="phone-link" href="tel:89778933640">+7 977 893-36-40</a>
+            <button class="btn" onclick="openModal('Индивидуальный заказ', 'По запросу', 'Вы можете заказать готовый букет из каталога или доверить нам создание индивидуальной композиции. Свяжитесь с нами для обсуждения деталей!')">Заказать</button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <!-- НОВЫЙ ЖУРНАЛЬНЫЙ ГЛАВНЫЙ ЭКРАН -->
+    <section class="hero">
+        <div class="hero-content reveal">
+            <div class="kicker">Авторская флористика · Москва</div>
+            <h1>Цветы, которые говорят <em>о чувствах</em> без слов.</h1>
+            <p class="intro">RN — студия цветов для особенных моментов. Создаём не просто композиции, а настроение и эмоции с доставкой по Москве.</p>
+            <div class="actions">
+                <a class="btn" href="#catalog">Смотреть каталог</a>
+                <a class="textlink" href="#studio">О студии</a>
+            </div>
+        </div>
+        
+        <div class="hero-image-wrapper">
+            <!-- Используем вашу новую картинку -->
+            <img src="шапка1.jpg" alt="Авторский букет RN" onerror="this.src='Готовые букеты1.jpg'">
+        </div>
+    </section>
+
+    <section id="studio" class="wrap about reveal">
+        <h2>О студии RN</h2>
+        <div>
+            <p>RN — современная цветочная студия в Москве, где эстетика, свежесть и внимание к деталям соединяются в каждом букете.</p>
+            <p>Мы создаём не просто цветочные композиции, а настроение, эмоции и незабываемые впечатления. Каждый букет RN — это особенная история, рассказанная на языке цветов. В нашей студии вы найдёте изысканные монобукеты, стильные авторские композиции, нежные сезонные сочетания и роскошные букеты для самых важных событий.</p>
+        </div>
+    </section>
+
+    <section class="benefit-bg reveal">
+        <div class="wrap">
+            <h2>Почему выбирают нас</h2>
+            <div class="benefits">
+                <div><h3>Свежие цветы</h3><p>Заботимся о качестве и красоте каждого букета.</p></div>
+                <div><h3>Авторская флористика</h3><p>Создаём стильные и гармоничные композиции.</p></div>
+                <div><h3>Индивидуальный подход</h3><p>Учитываем ваши пожелания и повод.</p></div>
+                <div><h3>Эстетика в деталях</h3><p>От выбора цветов до оформления букета.</p></div>
+                <div><h3>Доставка по Москве</h3><p>Помогаем дарить эмоции даже на расстоянии.</p></div>
+            </div>
+        </div>
+    </section>
+
+    <section id="catalog" class="wrap reveal">
+        <h2>Наш каталог</h2>
+        
+        <div class="filters">
+            <button aria-pressed="true" data-filter="all">Все</button>
+            <button aria-pressed="false" data-filter="ready">Готовые букеты</button>
+            <button aria-pressed="false" data-filter="mono">Монобукеты</button>
+            <button aria-pressed="false" data-filter="wedding">Свадебные</button>
+            <button aria-pressed="false" data-filter="basket">В корзине</button>
+            <button aria-pressed="false" data-filter="box">В коробке</button>
+            <button aria-pressed="false" data-filter="newyear">Новогодние</button>
+            <button aria-pressed="false" data-filter="interior">Интерьерные</button>
+        </div>
+
+        <div class="grid">
+            <!-- 1. Цветы в коробке 1 -->
+            <article data-category="box" data-title="Осенняя симфония" data-price="14 600 ₽" 
+                     data-desc="Роскошная цветочная композиция в тёплых оттенках осени. «Осенняя симфония» — эффектная авторская композиция, в которой гармонично переплетаются насыщенные терракотовые, бордовые, персиковые и золотистые оттенки.<br><br>Экзотические антуриумы, пышные хризантемы, нежные розы и декоративная зелень создают выразительное сочетание фактур и природной красоты. Цветы оформлены в стильной шляпной коробке нежно-зелёного оттенка, дополненной атласными лентами.<br><br>Такая композиция станет роскошным подарком для любимой женщины, мамы, коллеги или близкого человека.<br><br><b>Идеально подойдёт для:</b> дня рождения, юбилея, благодарности, романтического сюрприза или особенного знака внимания.<br><br><b>Особенности композиции:</b><br>• Авторская работа флористов RN Цветы<br>• Благородная осенняя цветовая гамма<br>• Сочетание экзотических и классических цветов<br>• Элегантное оформление в шляпной коробке<br>• Эффектный подарок, который запомнится<br><br>Каждая композиция создаётся вручную, поэтому состав и оттенки могут незначительно отличаться в зависимости от сезонного ассортимента.">
+                <div class="product-photo">
+                    <img src="Цветы в коробке1.jpg" alt="Осенняя симфония" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Цветы в коробке</div>
+                    <h3>Осенняя симфония</h3>
+                    <p>Роскошная композиция в тёплых оттенках осени. Антуриумы, хризантемы и розы в шляпной коробке.</p>
+                    <div class="order">
+                        <span class="price">14 600 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 2. Цветы в корзине 1 -->
+            <article data-category="basket" data-title="Цветочная страсть" data-price="27 500 ₽" 
+                     data-desc="Роскошная авторская композиция в корзине — яркое воплощение любви, элегантности и изысканного вкуса. «Цветочная страсть» — эффектная композиция, в которой насыщенные красные, благородные фиолетовые, нежно-розовые и свежие зелёные оттенки создают неповторимую гармонию цвета.<br><br>Бархатистые красные розы, пышные хризантемы глубоких сливовых оттенков, изящные пионовидные розы, нежная гортензия, эустома, каллы и декоративная зелень объединены в выразительную цветочную композицию.<br><br>Особый шарм придаёт натуральная плетёная корзина, которая подчёркивает природную красоту цветов и делает композицию стильным, самостоятельным подарком.<br><br><b>Идеально подойдёт для:</b> дня рождения, юбилея, романтического признания, поздравления любимой женщины, мамы, супруги или в качестве роскошного знака внимания.<br><br><b>Особенности композиции:</b><br>• Эксклюзивная авторская работа флористов RN Цветы<br>• Яркое сочетание красных, розовых и фиолетовых оттенков<br>• Премиальные розы и выразительные сезонные цветы<br>• Пышная, объёмная композиция<br>• Стильная натуральная плетёная корзина<br>• Незабываемый подарок для особенных моментов<br><br>Каждая композиция создаётся вручную. Состав и оттенки цветов могут незначительно отличаться в зависимости от сезонного ассортимента с сохранением общей стилистики.">
+                <div class="product-photo">
+                    <img src="Цветы в корзине1.jpg" alt="Цветочная страсть" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Цветы в корзине</div>
+                    <h3>Цветочная страсть</h3>
+                    <p>Яркое воплощение любви. Бархатистые розы, хризантемы, гортензия и каллы в плетёной корзине.</p>
+                    <div class="order">
+                        <span class="price">27 500 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 3. Цветы в корзине 2 -->
+            <article data-category="basket" data-title="Нежное прикосновение" data-price="35 000 ₽" 
+                     data-desc="Роскошная авторская композиция в плетёной корзине — воплощение нежности, изысканности и природной гармонии. «Нежное прикосновение» — воздушная цветочная композиция в утончённой палитре пудрово-розовых, кремовых, молочных и нежно-зелёных оттенков.<br><br>Пышные пионовидные розы, изящные эустомы, нежные гортензии, декоративные соцветия и свежая зелень создают многослойную композицию с красивыми переходами оттенков и фактур. Особую выразительность придают ниспадающие цветочные элементы, создающие эффект естественного цветочного водопада.<br><br>Элегантная плетёная корзина подчёркивает благородство композиции и превращает её в полноценный роскошный подарок, который не требует дополнительной вазы.<br><br><b>Идеально подойдёт для:</b> дня рождения, юбилея, свадьбы, рождения ребёнка, поздравления мамы, любимой женщины, супруги или в качестве особенного знака внимания.<br><br><b>Особенности композиции:</b><br>• Премиальная авторская работа флористов RN Цветы<br>• Нежная пастельная цветовая гамма<br>• Объёмная композиция с выразительными ниспадающими элементами<br>• Изысканное сочетание цветов и декоративной зелени<br>• Элегантная плетёная корзина<br>• Роскошный подарок для самых важных моментов<br><br>Каждая композиция создаётся вручную. Состав и оттенки могут незначительно отличаться в зависимости от наличия сезонных цветов с сохранением общей стилистики и цветовой гаммы.">
+                <div class="product-photo">
+                    <img src="Цветы в корзине2.jpg" alt="Нежное прикосновение" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Цветы в корзине</div>
+                    <h3>Нежное прикосновение</h3>
+                    <p>Воздушная композиция в пастельных тонах. Пионовидные розы и гортензии с ниспадающими элементами.</p>
+                    <div class="order">
+                        <span class="price">35 000 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 4. Цветы в корзине 3 -->
+            <article data-category="basket" data-title="Осенний характер" data-price="18 600 ₽" 
+                     data-desc="Эффектная авторская композиция в плетёной корзине — смелое сочетание насыщенных оттенков, необычных фактур и природной элегантности. «Осенний характер» — роскошная цветочная композиция, вдохновлённая красотой осенней природы и богатством её красок.<br><br>В центре внимания — пышные хризантемы глубокого винно-сливового оттенка, которые гармонично сочетаются с нежными розовыми диантусами, выразительным синим эрингиумом, яркими оранжевыми ягодами и декоративной зеленью. Особую индивидуальность композиции придают необычные природные линии, бордовые листья и эффектно ниспадающий амарант, создающий ощущение движения и лёгкости.<br><br>Натуральная плетёная корзина, дополненная изящными атласными лентами, подчёркивает авторский характер работы и превращает композицию в стильный интерьерный акцент.<br><br><b>Идеально подойдёт для:</b> дня рождения, юбилея, поздравления мамы, любимой женщины, руководителя, коллеги, благодарности или эффектного подарка без повода.<br><br><b>Особенности композиции:</b><br>• Эксклюзивная авторская работа флористов RN Цветы<br>• Благородная винно-сливовая палитра с яркими оранжевыми акцентами<br>• Сочетание хризантем, диантусов, эрингиума и декоративных ягод<br>• Выразительная асимметричная форма<br>• Эффектные ниспадающие элементы амаранта<br>• Натуральная плетёная корзина<br>• Стильное оформление атласными лентами<br><br>Каждая композиция создаётся вручную. Состав и оттенки могут незначительно отличаться в зависимости от сезонного ассортимента с сохранением общего стиля и цветовой гаммы.">
+                <div class="product-photo">
+                    <img src="Цветы в корзине3.jpg" alt="Осенний характер" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Цветы в корзине</div>
+                    <h3>Осенний характер</h3>
+                    <p>Смелое сочетание оттенков. Хризантемы, диантусы, эрингиум и ниспадающий амарант.</p>
+                    <div class="order">
+                        <span class="price">18 600 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 5. Новогодние букеты 1 -->
+            <article data-category="newyear" data-title="Зимняя сказка" data-price="5 700 ₽" 
+                     data-desc="Стильный авторский букет из хвойных ветвей, хлопка и натуральных декоративных элементов — воплощение зимнего уюта и праздничной атмосферы. «Зимняя сказка» — изысканный зимний букет, вдохновлённый красотой заснеженного леса и теплом рождественских традиций.<br><br>Пушистые ветви нобилиса насыщенного зелёного оттенка гармонично сочетаются с воздушными белоснежными коробочками хлопка, натуральными шишками, ароматными палочками корицы и декоративными веточками.<br><br>Особую элегантность композиции придаёт лаконичная упаковка из крафтовой бумаги, подчёркивающая естественную красоту природных материалов. Такой букет наполнит пространство атмосферой праздника, станет стильным украшением интерьера или оригинальным подарком для близких.<br><br><b>Идеально подойдёт для:</b> Нового года, Рождества, зимнего дня рождения, корпоративного поздравления, подарка маме, любимой женщине, друзьям или коллегам.<br><br><b>Особенности букета:</b><br>• Авторская работа флористов RN Цветы<br>• Благородные хвойные ветви нобилиса<br>• Натуральный хлопок, шишки и палочки корицы<br>• Стильная упаковка в природных оттенках<br>• Праздничная композиция в эстетике минимализма<br>• Прекрасный вариант зимнего подарка и новогоднего декора<br><br>Каждый букет создаётся вручную. Состав и расположение декоративных элементов могут незначительно отличаться с сохранением общей стилистики.">
+                <div class="product-photo">
+                    <img src="Новогодние букеты1.jpg" alt="Зимняя сказка" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Новогодние</div>
+                    <h3>Зимняя сказка</h3>
+                    <p>Стильный букет из нобилиса, хлопка, шишек и палочек корицы в крафтовой бумаге.</p>
+                    <div class="order">
+                        <span class="price">5 700 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 6. Новогодние букеты 2 -->
+            <article data-category="newyear" data-title="Золотое Рождество" data-price="8 900 ₽" 
+                     data-desc="Роскошная новогодняя композиция из нобилиса со свечами и золотыми украшениями — воплощение праздничной элегантности и утончённого стиля. «Золотое Рождество» — изысканная авторская композиция, в которой природная красота хвойных ветвей соединяется с благородным сиянием золота.<br><br>Пышные ветви нобилиса с красивым серебристо-зелёным оттенком дополнены высокими декоративными свечами, золотистыми ёлочными шарами, изящными бусами и причудливо изогнутыми веточками. Особую роскошь композиции придают струящиеся атласные ленты в оттенках шампанского и золота. Лаконичное светлое кашпо подчёркивает современную эстетику.<br><br>Эта новогодняя композиция станет выразительным акцентом праздничного стола, элегантным украшением дома, офиса или стильным подарком для близких и деловых партнёров.<br><br><b>Идеально подойдёт для:</b> Нового года, Рождества, украшения праздничного стола, оформления интерьера, корпоративных подарков и особенных зимних поздравлений.<br><br><b>Особенности композиции:</b><br>• Эксклюзивная авторская работа флористов RN Цветы<br>• Пышные хвойные ветви нобилиса<br>• Элегантные высокие свечи<br>• Золотые ёлочные украшения и декоративные бусы<br>• Благородная палитра золота, шампанского и хвойной зелени<br>• Стильное минималистичное кашпо<br>• Премиальная эстетика новогоднего декора<br><br>Каждая композиция создаётся вручную. Декоративные элементы могут незначительно отличаться при сохранении общей стилистики и цветовой гаммы. Свечи следует зажигать только при условии безопасного расстояния от хвойных ветвей и декоративных элементов.">
+                <div class="product-photo">
+                    <img src="Новогодние букеты2.jpg" alt="Золотое Рождество" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Новогодние</div>
+                    <h3>Золотое Рождество</h3>
+                    <p>Композиция из нобилиса с высокими свечами, золотыми шарами и атласными лентами.</p>
+                    <div class="order">
+                        <span class="price">8 900 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 7. Готовые букеты 1 -->
+            <article data-category="ready" data-title="Розовое облако (Вариант 1)" data-price="14 900 ₽" 
+                     data-desc="Нежный авторский букет с розами, диантусами и лилиями — воплощение лёгкости, романтики и изысканной красоты. «Розовое облако» — воздушная цветочная композиция, созданная в утончённой палитре пудрово-розовых, сиреневых, молочных и свежих зелёных оттенков.<br><br>Элегантные розы, нежные диантусы, благородные лилии, воздушные сиреневые соцветия и декоративная зелень гармонично переплетаются, создавая объёмный букет с мягкими переходами цвета и разнообразием фактур.<br><br>Белоснежная многослойная упаковка, дополненная нежно-розовой атласной лентой, подчёркивает свежесть и природную красоту цветов. Этот букет станет прекрасным способом выразить самые тёплые чувства, подарить улыбку и сделать любой день особенным.<br><br><b>Идеально подойдёт для:</b> дня рождения, поздравления мамы, любимой девушки, супруги, сестры, романтического свидания, благодарности или подарка без повода.<br><br><b>Особенности букета:</b><br>• Авторская работа флористов RN Цветы<br>• Нежная розово-сиреневая палитра<br>• Сочетание роз, диантусов, лилий и декоративной зелени<br>• Пышная, воздушная форма<br>• Элегантная белая упаковка<br>• Нежная атласная лента<br><br>Каждый букет создаётся вручную. Состав и оттенки могут незначительно отличаться в зависимости от сезонного ассортимента с сохранением общей стилистики.">
+                <div class="product-photo">
+                    <img src="Готовые букеты1.jpg" alt="Розовое облако 1" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Готовые букеты</div>
+                    <h3>Розовое облако</h3>
+                    <p>Нежный букет с розами, диантусами и лилиями. Пудрово-розовые и молочные оттенки.</p>
+                    <div class="order">
+                        <span class="price">14 900 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 8. Готовые букеты 2 -->
+            <article data-category="ready" data-title="Розовое облако (Вариант 2)" data-price="9 400 ₽" 
+                     data-desc="Нежный авторский букет с розами, диантусами и лилиями — воплощение лёгкости, романтики и изысканной красоты. «Розовое облако» — воздушная цветочная композиция, созданная в утончённой палитре пудрово-розовых, сиреневых, молочных и свежих зелёных оттенков.<br><br>Элегантные розы, нежные диантусы, благородные лилии, воздушные сиреневые соцветия и декоративная зелень гармонично переплетаются, создавая объёмный букет с мягкими переходами цвета и разнообразием фактур.<br><br>Белоснежная многослойная упаковка, дополненная нежно-розовой атласной лентой, подчёркивает свежесть и природную красоту цветов. Этот букет станет прекрасным способом выразить самые тёплые чувства, подарить улыбку и сделать любой день особенным.<br><br><b>Идеально подойдёт для:</b> дня рождения, поздравления мамы, любимой девушки, супруги, сестры, романтического свидания, благодарности или подарка без повода.<br><br><b>Особенности букета:</b><br>• Авторская работа флористов RN Цветы<br>• Нежная розово-сиреневая палитра<br>• Сочетание роз, диантусов, лилий и декоративной зелени<br>• Пышная, воздушная форма<br>• Элегантная белая упаковка<br>• Нежная атласная лента<br><br>Каждый букет создаётся вручную. Состав и оттенки могут незначительно отличаться в зависимости от сезонного ассортимента с сохранением общей стилистики.">
+                <div class="product-photo">
+                    <img src="Готовые букеты2.jpg" alt="Розовое облако 2" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Готовые букеты</div>
+                    <h3>Розовое облако</h3>
+                    <p>Нежный букет с розами, диантусами и лилиями. Пудрово-розовые и молочные оттенки.</p>
+                    <div class="order">
+                        <span class="price">9 400 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 9. Свадебный 1 -->
+            <article data-category="wedding" data-title="Белая элегантность" data-price="9 900 ₽" 
+                     data-desc="Изысканный авторский букет из белоснежных калл, орхидей и диантусов — воплощение чистоты, нежности и безупречного вкуса. «Белая элегантность» — утончённая цветочная композиция в благородной белоснежной палитре.<br><br>Изящные каллы, экзотические орхидеи фаленопсис и воздушные диантусы создают гармоничное сочетание нежных фактур и скульптурных линий.<br><br>Каждый цветок подчёркивает естественную красоту композиции, а лаконичное оформление стеблей атласной лентой придаёт букету особую элегантность. Отсутствие объёмной упаковки позволяет полностью раскрыть красоту цветов и делает букет по-настоящему стильным и современным.<br><br><b>Идеально подойдёт для:</b> свадьбы, дня рождения, юбилея, романтического признания, поздравления любимой женщины или особенного подарка.<br><br><b>Особенности букета:</b><br>• Авторская работа флористов RN Цветы<br>• Благородная белоснежная гамма<br>• Изысканное сочетание калл, орхидей и диантусов<br>• Минималистичное оформление<br>• Современная премиальная флористика<br>• Элегантный подарок для особенных моментов<br><br>Каждый букет создаётся вручную. Состав может незначительно отличаться в зависимости от наличия цветов с сохранением общей стилистики.">
+                <div class="product-photo">
+                    <img src="Свадебный1.jpg" alt="Белая элегантность" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Свадебные</div>
+                    <h3>Белая элегантность</h3>
+                    <p>Букет из белоснежных калл, орхидей фаленопсис и диантусов.</p>
+                    <div class="order">
+                        <span class="price">9 900 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 10. Свадебный 2 -->
+            <article data-category="wedding" data-title="Жемчужная нежность" data-price="11 000 ₽" 
+                     data-desc="Изысканный авторский букет из ранункулюсов — воплощение романтики, утончённости и элегантности. «Жемчужная нежность» — воздушная композиция из пышных ранункулюсов в нежнейших пудрово-розовых, кремовых и молочных оттенках.<br><br>Многослойные лепестки создают ощущение невесомости, а изящные зелёные линии добавляют букету естественности и выразительности. Особую роскошь композиции придают декоративные жемчужные нити, ниспадающие вдоль стеблей. Лаконичная атласная лента завершает образ, подчёркивая премиальную эстетику букета.<br><br><b>Идеально подойдёт для:</b> свадьбы, дня рождения, романтического признания, подарка любимой женщине, невесте или особенного знака внимания.<br><br><b>Особенности:</b><br>• Нежные ранункулюсы в пастельной гамме<br>• Современная асимметричная форма<br>• Декоративные жемчужные нити<br>• Атласное оформление стеблей<br>• Авторская флористика RN Цветы<br><br>Каждый букет создаётся вручную. Количество и оттенки цветов уточняются при заказе.">
+                <div class="product-photo">
+                    <img src="Свадебный2.jpg" alt="Жемчужная нежность" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Свадебные</div>
+                    <h3>Жемчужная нежность</h3>
+                    <p>Воздушная композиция из пышных ранункулюсов с жемчужными нитями.</p>
+                    <div class="order">
+                        <span class="price">11 000 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 11. Монобукет 1 -->
+            <article data-category="mono" data-title="Белоснежная нежность" data-price="12 500 ₽" 
+                     data-desc="Роскошный авторский букет из белой эустомы — воплощение чистоты, элегантности и утончённой красоты. «Белоснежная нежность» — воздушный и невероятно изысканный букет, созданный из нежной белоснежной эустомы с изящными бутонами и пышными раскрытыми цветами.<br><br>Многослойные лепестки, напоминающие миниатюрные розы, придают композиции особую романтичность, а множество нежных бутонов создаёт ощущение естественной свежести и лёгкости.<br><br>Благородная белая палитра подчёркивает элегантность букета. Лаконичная многослойная упаковка в молочных оттенках, дополненная атласной лентой, завершает безупречный образ. Этот букет станет прекрасным способом выразить искренние чувства, нежность, благодарность и восхищение.<br><br><b>Идеально подойдёт для:</b> дня рождения, свадьбы, юбилея, поздравления мамы, любимой женщины, супруги, рождения ребёнка, романтического признания или подарка без повода.<br><br><b>Особенности букета:</b><br>• Авторская работа флористов RN Цветы<br>• Нежная белоснежная эустома<br>• Пышная, объёмная форма<br>• Сочетание раскрытых цветов и изящных бутонов<br>• Элегантная многослойная упаковка<br>• Благородная атласная лента<br>• Изысканная эстетика современной флористики<br><br>Каждый букет создаётся вручную. Количество веток и степень раскрытия бутонов могут отличаться в зависимости от сезонного ассортимента.">
+                <div class="product-photo">
+                    <img src="Монобукеты1.jpg" alt="Белоснежная нежность" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Монобукеты</div>
+                    <h3>Белоснежная нежность</h3>
+                    <p>Роскошный букет из белой эустомы с изящными бутонами.</p>
+                    <div class="order">
+                        <span class="price">12 500 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 12. Монобукет 2 -->
+            <article data-category="mono" data-title="Белоснежное совершенство" data-price="14 800 ₽" 
+                     data-desc="Роскошный букет из белых роз — воплощение элегантности, искренних чувств и безупречного вкуса. «Белоснежное совершенство» — изысканный монобукет из крупных белых роз с нежным кремовым оттенком, созданный для самых красивых и незабываемых моментов.<br><br>Благородные бутоны с многослойными бархатистыми лепестками образуют пышную, гармоничную композицию. Каждая роза подчёркивает естественную красоту букета, создавая ощущение роскоши, чистоты и утончённости.<br><br>Лаконичная матовая упаковка в молочных оттенках и элегантная атласная лента завершают образ, не отвлекая внимания от великолепия цветов. Этот букет станет прекрасным способом выразить любовь, восхищение, благодарность и самые искренние чувства.<br><br><b>Идеально подойдёт для:</b> дня рождения, юбилея, свадьбы, романтического признания, поздравления мамы, любимой женщины, супруги или особенного подарка без повода.<br><br><b>Особенности букета:</b><br>• Крупные белые розы премиального качества<br>• Нежная бело-кремовая цветовая гамма<br>• Пышная, гармоничная форма<br>• Стильная матовая упаковка<br>• Элегантная атласная лента<br>• Классическая роскошь в современной флористике<br><br>Каждый букет создаётся вручную. Оттенок и степень раскрытия бутонов могут незначительно отличаться в зависимости от поставки.">
+                <div class="product-photo">
+                    <img src="Монобукеты2.jpg" alt="Белоснежное совершенство" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Монобукеты</div>
+                    <h3>Белоснежное совершенство</h3>
+                    <p>Монобукет из крупных белых роз с кремовым оттенком.</p>
+                    <div class="order">
+                        <span class="price">14 800 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+
+            <!-- 13. Интерьерный 1 -->
+            <article data-category="interior" data-title="Огненная осень" data-price="18 200 ₽" 
+                     data-desc="Эффектная авторская композиция в насыщенных красных и бордовых оттенках — воплощение природной энергии, страсти и современной флористики. «Огненная осень» — выразительная интерьерная композиция, вдохновлённая красотой осеннего леса и богатством его красок.<br><br>Яркие ветви илекса с алыми ягодами, экзотические леукоспермумы огненно-оранжевых оттенков, декоративные бордовые соцветия, резные листья дуба и благородный эвкалипт создают необыкновенное сочетание природных форм и фактур. Особую выразительность придают устремлённые вверх ягодные ветви и насыщенная красно-бордовая палитра. Они создают динамичный силуэт и превращают композицию в настоящий флористический арт-объект.<br><br>Лаконичная светлая упаковка подчёркивает яркость цветов, а декоративная ваза и бордовые ленты завершают эффектный образ. «Огненная осень» станет выразительным акцентом современного интерьера, украшением дома, офиса или необычным подарком для ценителей эксклюзивной флористики.<br><br><b>Идеально подойдёт для:</b> дня рождения, юбилея, корпоративного подарка, поздравления руководителя, оформления интерьера, праздничного мероприятия или особенного знака внимания.<br><br><b>Особенности композиции:</b><br>• Эксклюзивная авторская работа флористов RN Цветы<br>• Экзотические леукоспермумы<br>• Яркие ягодные ветви илекса<br>• Декоративные бордовые соцветия и осенние листья<br>• Благородная зелень эвкалипта<br>• Эффектная асимметричная форма<br>• Насыщенная красно-бордовая цветовая гамма<br>• Современная интерьерная эстетика<br><br>Каждая композиция создаётся вручную. Состав и расположение элементов могут незначительно отличаться в зависимости от сезонного ассортимента с сохранением общей стилистики.">
+                <div class="product-photo">
+                    <img src="Интерьерный1.jpg" alt="Огненная осень" onerror="this.style.display='none'">
+                    <span>RN</span>
+                </div>
+                <div class="product-info">
+                    <div class="label">Интерьерные</div>
+                    <h3>Огненная осень</h3>
+                    <p>Эффектная композиция с ветвями илекса, леукоспермумами и эвкалиптом.</p>
+                    <div class="order">
+                        <span class="price">18 200 ₽</span>
+                        <button class="order-btn">Заказать</button>
+                    </div>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section id="contacts" class="contact-bg reveal">
+        <div class="wrap contacts">
+            <div>
+                <h2>Ждём вас в студии</h2>
+                <p style="color: var(--muted); font-size: 16px; line-height: 1.8;">Выберите готовый букет из нашего каталога или доверьте нам создание индивидуальной композиции. Мы всегда рады помочь вам подобрать идеальный подарок.</p>
+            </div>
+            <address>
+                <a href="tel:89778933640">+7 977 893-36-40</a>
+                <p>📍 Москва, Большая Дорогомиловская, 7</p>
+                <p>🕒 График работы: с 09:00 до 21:00</p>
+                <a class="social-link" href="https://www.instagram.com/rona___flower" target="_blank" rel="noopener">
+                    Мы в Instagram ↗
+                </a>
+                <iframe src="https://yandex.ru/map-widget/v1/?um=constructor%3A8a3b3c4d5e6f7g8h9i0j&source=constructor" width="100%" height="300" frameborder="0" style="margin-top: 30px;"></iframe>
+            </address>
+        </div>
+    </section>
+</main>
+
+<footer class="wrap foot">
+    <div><b>RN</b> Цветочная студия</div>
+    <div>&copy; 2024 RN — для особенных моментов.</div>
+</footer>
+
+<!-- Модальное окно -->
+<dialog id="orderModal">
+    <div class="modal-content">
+        <button class="close-btn" id="closeModal" aria-label="Закрыть">×</button>
+        <h3 id="modalProductName">Название</h3>
+        <div class="modal-price" id="modalProductPrice">0 ₽</div>
+        <div class="modal-desc" id="modalProductDesc">Описание</div>
+        
+        <p style="font-weight: 600; margin-bottom: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink);">Связаться для заказа:</p>
+        <div class="modal-contact">
+            <a href="tel:89778933640" class="phone">📞 +7 977 893-36-40</a>
+            <a href="https://www.instagram.com/rona___flower" target="_blank">Написать в Instagram ↗</a>
+        </div>
+    </div>
+</dialog>
+
+<script>
+    /* --- 1. Умная шапка (меняет фон при скролле) --- */
+    const header = document.getElementById('main-header');
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 50) {
+            header.classList.add('scrolled');
+        } else {
+            header.classList.remove('scrolled');
+        }
+    });
+
+    /* --- 2. Логика модального окна --- */
+    const modal = document.getElementById('orderModal');
+    const closeModal = document.getElementById('closeModal');
+    const modalName = document.getElementById('modalProductName');
+    const modalPrice = document.getElementById('modalProductPrice');
+    const modalDesc = document.getElementById('modalProductDesc');
+
+    function openModal(title, price, desc) {
+        modalName.textContent = title;
+        modalPrice.textContent = price;
+        modalDesc.innerHTML = desc; 
+        modal.showModal();
+    }
+
+    document.querySelectorAll('.grid article').forEach(article => {
+        const title = article.getAttribute('data-title');
+        const price = article.getAttribute('data-price');
+        const desc = article.getAttribute('data-desc');
+
+        article.querySelector('.product-photo').addEventListener('click', () => openModal(title, price, desc));
+        article.querySelector('h3').addEventListener('click', () => openModal(title, price, desc));
+        article.querySelector('.order-btn').addEventListener('click', () => openModal(title, price, desc));
+    });
+
+    closeModal.addEventListener('click', () => modal.close());
+    modal.addEventListener('click', (e) => {
+        const rect = modal.getBoundingClientRect();
+        if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) modal.close();
+    });
+
+    /* --- 3. Фильтр каталога --- */
+    const filterBtns = document.querySelectorAll('.filters button');
+    const articles = document.querySelectorAll('.grid article');
+
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => b.setAttribute('aria-pressed', 'false'));
+            btn.setAttribute('aria-pressed', 'true');
+
+            const filter = btn.getAttribute('data-filter');
+            articles.forEach(article => {
+                if (filter === 'all' || article.getAttribute('data-category') === filter) {
+                    article.hidden = false;
+                } else {
+                    article.hidden = true;
+                }
+            });
+        });
+    });
+
+    /* --- 4. Анимация появления при скролле --- */
+    const revealElements = document.querySelectorAll('.reveal');
+    const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('active');
+                revealObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold: 0.1 });
+
+    revealElements.forEach(el => revealObserver.observe(el));
+
+    /* --- 5. БОЛЬШИЕ ПАДАЮЩИЕ ЗОЛОТЫЕ ЛЕПЕСТКИ (Canvas) --- */
+    const canvas = document.getElementById('petals-canvas');
+    const ctx = canvas.getContext('2d');
+    let width, height;
+    let petals = [];
+
+    function resizeCanvas() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Petal {
+        constructor() {
+            this.reset();
+            this.y = Math.random() * height; 
+        }
+        reset() {
+            this.x = Math.random() * width;
+            this.y = -50; // Начинаем выше экрана
+            // Сделали их БОЛЬШИМИ (от 6 до 16 пикселей)
+            this.size = Math.random() * 10 + 6; 
+            this.speedY = Math.random() * 1.5 + 0.5; // Скорость падения
+            this.speedX = Math.random() * 1 - 0.5; // Снос вбок
+            this.opacity = Math.random() * 0.7 + 0.2; // Прозрачность
+            this.rotation = Math.random() * Math.PI * 2;
+            this.rotationSpeed = Math.random() * 0.03 - 0.015; // Скорость вращения
+            
+            // Красивый золотой оттенок
+            const colors = [
+                `rgba(195, 164, 124, ${this.opacity})`,
+                `rgba(212, 181, 142, ${this.opacity})`,
+                `rgba(165, 130, 88, ${this.opacity})`
+            ];
+            this.color = colors[Math.floor(Math.random() * colors.length)];
+        }
+        update() {
+            this.y += this.speedY;
+            this.x += Math.sin(this.y / 60) * 0.8 + this.speedX; 
+            this.rotation += this.rotationSpeed;
+
+            if (this.y > height + 50) {
+                this.reset();
+            }
+        }
+        draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.beginPath();
+            // Рисуем форму лепестка (эллипс) вместо круга
+            ctx.ellipse(0, 0, this.size, this.size / 2, 0, 0, Math.PI * 2);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            
+            // Легкое свечение
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = 'rgba(195, 164, 124, 0.6)';
+            ctx.restore();
+        }
+    }
+
+    // Количество лепестков (сделал 50 для красоты)
+    for (let i = 0; i < 50; i++) {
+        petals.push(new Petal());
+    }
+
+    function animatePetals() {
+        ctx.clearRect(0, 0, width, height);
+        petals.forEach(petal => {
+            petal.update();
+            petal.draw();
+        });
+        requestAnimationFrame(animatePetals);
+    }
+    animatePetals();
+</script>
+</body>
+</html>
